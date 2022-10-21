@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <title>Serial Disk Copy  </title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="/css/style.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <nav>      <ul>
+        <li><a href="/index.html">About</a></li>
+        <li><a href="/projects/function-generator/index.html">HTML Function Generator</a></li>
+        <li><a href="/projects/serial-disk-copy/index.html">Serial Disk Copy</a></li>
+      </ul>
+    </nav>
+    <main><article><time datetime="2017-11-22">22.11.2017</time><h1>SerialDiskCopy</h1>
+<p>I wrote a programm that transfers old Macintosh Volumes over Serialport to a modern Computer.
+I needed it to make a 1:1 copy of my old data, so I could recover already deleted files.</p>
+<p>[Image url=&quot;./blabli.jpg&quot; description=&quot;Screenshot of \&quot;mySerialCopier\&quot;&quot;]</p>
+<p>I found an old Harddisk with some data on it I wanted to recover.
+Because the old Macs use SCSI as their peripheral interface, this one is a very exotic SCSI 40pin Harddisk, I couldnt just attach it to my current computer. Instead of ordering a adapter, I decided to buy the original computer, which the harddisk came width.</p>
+<p>I found A PowerBook 145b on ebay-kleinanzeigen.de for 25 bucks plus 25 bucks shipping.</p>
+<p>To recover all bits from the harddisk I wrote a Programm with the Macintosh Programmers Workshop, which is the original Apple IDE for developing on the Mac. I ran it in the Basilisk II Emulator, because its much faster than devloping on the real Machine. The programm basicly does following:</p>
+<ul>
+<li>let the user choose the volume and blocksize (8192 bytes seems to be a good option there)</li>
+<li>open the serial driver and configure it (8 bit 1 stop bit no parity, 55400 baud -&gt; max speed on the old macs ;-), no hardware checks )</li>
+<li>open the disk driver that is used for the provided volume (interesting note: the old macs save the diskdriver on the scsi disk itself!!!)</li>
+<li>send start bytes and disk size over the serial port</li>
+<li>for every block: read block, calculate crc checksum, send it over serial</li>
+</ul>
+<p>For the other end I wrote a python script that grabbs the data from the serial port and saves them to a file. When done it prints a short summary of the CRC errors that occured. (I never had an CRC error, but its important to know if you ever have one)</p>
+<p>Now I simply connected the tx-&gt;rx and ground pins from the Mac to my current machines serial port:
+[Image url=&quot;./blabli.jpg&quot; description=&quot;Serialport Pinout&quot;]
+To see the actual data, I also connected my oszilloscope ;-)...</p>
+<p>So this is very simple one way communication and the code is also not tidied up, but it worked quite well on my powerbook.
+So feel free to use it too, if you need it:</p>
+<p>Here Is a video of the stuff in action:
+[Video url=&quot;./transfer.mp4&quot; &quot;Viedo showing the Transfer from the old PowerPook to my Linux Box&quot;]</p>
+<p>Here you can grabb the code for this stuff:
+[gitlisting giturl=&quot;./mygitrepo&quot;]</p></article>    </main>
+</body>
+</html>
