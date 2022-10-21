@@ -65,9 +65,3 @@ article > p > a {
 article > time {
   color: #989898;
 }
-
-.obfuscated {
-  unicode-bidi: bidi-override;
-  direction: rtl;
-  text-align: left;
-}
