@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <title>Macintosh IIci Easter Egg Hunt  </title>
+    <meta charset="UTF-8">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2280%22>🚀</text></svg>">
+    <link rel="stylesheet" href="/css/style.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <nav>      <ul>
+        <li><a href="/">About</a></li>
+        <li><a href="/projects/function-generator/">HTML Function Generator</a></li>
+        <li><a href="/projects/iici-easteregg-hunt/">Macintosh IIci Easter Egg Hunt</a></li>
+      </ul>
+    </nav>
+    <main><article><time datetime="2022-10-26">26.10.2022</time><h1>Macintosh IIci Easter Egg Hunt</h1>
+<p><img src="iici.jpg" /></p>
+<p>When I setup my old Macintosh IIci in my new retro computing corner in the basement, I played around a bit with the system and also tried the easter egg, where you set the system date to the release date of the machine, reboot and press <strong>Command + Option + c + i</strong>. If you done all correctly, you get an image of the IIci development team.</p>
+<p><img src="easteregg.jpg" /></p>
+<p>I was curious where the IIci easter egg was stored in ROM.</p>
+<p>So I downloaded the ROM and as a first try, I ran it through a custom script, that creates a pixel for every byte in a file and chooses its intensity according to the byte value. This is what came out:</p>
+<p><img src="draw-binary.png" /></p>
+<p>I could not recognize any bitmap patterns on the resulting image, so no luck with this method.</p>
+<p>Then I tried <strong>binwalk</strong>, a tool that identifies known file headers.
+For example, it can extract JPEG images from the later Power Mac ROMs. But no results here either:</p>
+<p><img src="binwalk.png" /></p>
+<p>So it was time to fire up a disassembler and start with reverse engineering. I use an old version of IDA Pro for this.</p>
+<p>As a starting point, there is a great article for Macintosh ROM hacking, available on <a href="https://www.bigmessowires.com/2016/06/10/rom-hacking-tutorial-with-rom-inator-ii/">www.bigmessowires.com</a>.</p>
+<p>First step is to load the ROM correctly in the disassembler: The ROM is 512 KB in size and the IIci maps it to address <strong>0x40800000</strong>. So you need to load the ROM at 0x40800000. I also created a RAM segment of 2 MB in size:</p>
+<p><img src="ida-segments.png" class="framed" /></p>
+<p>When you reverse engineer something, it is tremendously helpful to have names for addresses in ROM that describe them. It turns out, there is a ROM map file for the IIci in some releases of the Macintosh Programmers Workshop (this was Apples development software package). I found it on the <a href="https://macintoshgarden.org/apps/macintosh-programmers-workshop">MPW-GM</a> release:</p>
+<p><img src="mpw-rom-maps.png" /></p>
+<p>I ended up creating IDA specific Python expressions from this file, that define the names in IDA.</p>
+<p>Armed with address names, I tried to find the code section, that was responsible for drawing the easter egg picture.</p>
+<p>I looked for names that could be involved in the easter egg logic. Names related to drawing, key input or date checks. However, all interesting routines I found, seemed not to be called by any code that looked like the easter egg code.</p>
+<p>Interestingly there is a routine called <strong>TODEEPSHIT</strong>. Wondering how this name came about 🤔...</p>
+<p><img src="todeepshit.png" class="framed" /></p>
+<p>Anyhow, I switched strategy and started at the entry point of the ROM and work my way down. Then suddenly something else caught my attention. <strong>What are these magenta colored names?</strong></p>
+<p><img src="atraps.png" class="framed" /></p>
+<p>Then it came to my mind: These must be the A-traps, the Macintosh way of doing syscalls.
+Very nice, that IDA automatically recognized and translated them.</p>
+<p>Now I had another lead: I could look for A-trap names that might be used in the easter egg code.
+I found a list of all A-traps in the <a href="https://macintoshgarden.org/apps/mac-almanac-ii">MacAlmanac II</a>.</p>
+<p><strong>DrawPicture</strong> immediately caught my attention. It translates to the hex value 0xA8F6, a value I could search for in the ROM:</p>
+<p><img src="0xa8f6.png" class="framed" /></p>
+<p>Great only 4 candidates to check. The last routine at <strong>0x40847524</strong> looked the most promising. The A-trap names show, that it draws a rectangle and a picture with some framing.</p>
+<p><img src="0x40847524.png" class="framed" /></p>
+<p>This routine is only called once in the ROM. The call is located in the code section right above at <strong>0x408474d0</strong> and is named <strong>INITOVERPATCH</strong>.
+Before calling the draw routine, the code first branches to the subroutine at <strong>0x408474d8</strong> which compares a lot of RAM data with intermediate values. Now I was pretty sure that this is the easter egg code.</p>
+<p><img src="0x408474d0.png" class="framed" /></p>
+<p>To better understand what the compares actually do, I also added names of known RAM locations to IDA. I pulled them from the <a href="https://macintoshgarden.org/apps/mac-almanac-ii">MacAlmanac II</a> and the <strong>Macros.r</strong> file (located in the MacsBug resource folder on the <a href="https://macintoshgarden.org/apps/macintosh-programmers-workshop">MPW 3 CD-ROM</a>). The memory locations that are checked are named <strong>KeyMap</strong> and <strong>Time</strong>. So, exactly what is needed for the easter egg code to work.</p>
+<p>To verify everything, I went to the IIci, hit the interrupt key, which brings up a small debugger. There I entered <strong>G 40847524</strong>:</p>
+<p><img src="iici-debug-1.jpg" /></p>
+<p>This instructs the CPU to <strong>G</strong>O to the address that draws the easter egg image. The checks for the correct date and pressed keys are not relevant, as they happen in the other routine. After hitting enter, we got this:</p>
+<p><img src="iici-debug-2.jpg" /></p>
+<p>Cool, a little bit offset, but the picture still made it to the screen. Now we can trigger the easter egg whenever we want.</p>
+<p>The next step was to extract the picture data from the ROM.</p>
+<p>By browsing the <strong>Inside Macintosh</strong> books, I found out that the <strong>DrawPicture</strong> A-trap, that is used here to draw the picture, requires PICT resources as input.</p>
+<p>PICT resources start either with the hex sequence 0x110101 for PICT1 or 0x001102ff for PICT2. So I searched for these values in the ROM, but could not find any. I assumed that the image data is stored scrambled in ROM and that the code decompresses or just descrambles it before putting it on display.</p>
+<p>So I looked again at the code in IDA and saw that the draw routine <strong>0x40847524</strong> calls another routine located at <strong>0x408475f2</strong>.
+Note that the first instruction loads the address <strong>0x4084777e</strong> into register a1. Upon which data is loaded and processed. This means that the address <strong>0x4084777e</strong> most probably is the address of the scrambled image data and that this routine unscrambles it.</p>
+<p><img src="0x408475f2.png" class="framed" /></p>
+<p>To verify this, I copied the code of the routine and the section of the ROM that contains the scrambled data and put together a program for <strong>EASy68K</strong>, an Motorola 68000 emulator. I use an emulator, because it helps me a lot understanding machine code. You can step through it and inspect the registers and memory values as you go.</p>
+<p><img src="easy68k.png" /></p>
+<p>After running the program, I dumped the unscrambled data from RAM and opened it with <strong>Preview</strong> on macOS.
+<img src="first-dump.png" /></p>
+<p>There it is, the IIci easter egg image, in its full low-res 256 color glory!</p>
+<p>Now an idea came to my mind: What if we write a Python script that mimics this descramble routine and check if we can extract valid PICT resources from other Macintosh ROM images. Maybe we discover easter egg images nobody knows about yet.</p>
+<p>It took me a while to get the script together, the obscure <strong>bfexts</strong> assembly instruction boggled my mind quite a bit. It was already late and the script was quite slow, so I started it and went to bed. The next morning I was excited to check what the computer came up with. Following images were extracted:</p>
+<p><img src="iici.png" /></p>
+<p><img src="quadra_700-950.png" /></p>
+<p>The first is the IIci picture that is also contained in the IIfx ROM.</p>
+<p>The second is a picture that is contained in Quadra 700 and 950 ROMs. I found out that this <strong>Reign of Terror</strong> easter egg is already <a href="http://www.mackido.com/EasterEggs/HW-Quadras.html">documented on the Internet</a>.</p>
+<p>So quite a bummer, I hoped at least for one unknown easter egg. 🙁</p>
+<p>This was in February 2022, in October 2022 I started writing this page to share the project on the Internet.
+I was polishing the scripts before publishing them, when I realized: The extraction script only checks for PICT2 and not for PICT1 resources.</p>
+<p>So I went ahead and implemented the PICT1 file extraction and ran it over all ROMs again.
+Apart from the previous PICT2 matches and some invalid ones, one new image appeared:</p>
+<p><img src="centris_quadra_650.png" /></p>
+<p>It's contained in the Quadra 610/650 and Centris 610/650 ROMs. I never saw it and also could not find anything regarding it on the Internet.</p>
+<p><strong>Even though the image is a bit lame, as it only contains text, it was still cool to find at least one unknown easter egg 🥳!</strong></p>
+<p>Now the last step was to check in the code and see how the easter egg can be triggered.</p>
+<p>I loaded the Centris ROM and searched for the DrawPicture trap to find the easter egg code and the according check routine. I found it at <strong>0x4084f154</strong>:</p>
+<p><img src="centris_check.png" class="framed" /> </p>
+<p>With the help of trusty old EASy68K I could reverse how it works. The routine is similar like the one found in the Quadra ROMs and is a bit more complicated than the one on the IIci. Instead of having a check for every key, it loops through a list of 4 byte values (easteregg_keymap_values), that define which bit on which offset on the keymap has to be set.</p>
+<p>The keycodes are documented in the <strong>Inside Macintosh</strong> books. By looking them up, I could figure out that ESC + l + f + w needs to be pressed on boot.</p>
+<p>To verify this, I reached out the <a href="https://68kmla.org/bb/index.php?threads/easter-egg-image-centris-quadra-610-650.42457/">68kmla.org</a> community, and after one day we had this easter egg confirmed.
+Many thanks to them!</p>
+<p>It was interesting to do the reverse engineering on the ROMs and I was very happy finding an unknown easter egg on the second attempt!</p>
+<p>If you want to try it yourself, you can download all the scripts from <a href="https://github.com/nerdprojects/macintosh-rom-easteregg-hunt">https://github.com/nerdprojects/macintosh-rom-easteregg-hunt</a>.</p>
+<p>And an idea for the future could be to look for sound resources in the Macintosh ROMs 😉.</p></article>    </main>
+    <script src="/js/script.js"></script>
+</body>
+</html>

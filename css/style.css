@@ -46,8 +46,12 @@ article {
   margin: 0 auto;
 }
 
-article > img {
-  width: 100%;
+article img {
+  display: block;
+}
+
+article img.framed {
+  border: 1px solid black;
 }
 
 article > h1 {
@@ -64,4 +68,12 @@ article > p > a {
 
 article > time {
   color: #989898;
+}
+
+pre {
+  background: #666;
+  padding: 10px;
+  border-radius: 5px;
+  font-size: 12px;
+  color: white;
 }
