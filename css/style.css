@@ -46,11 +46,22 @@ article {
   margin: 0 auto;
 }
 
-article img {
-  display: block;
+article figure {
+  margin: 0;
+  width: 100%;
+  display: flex;
+  gap: 20px;
 }
 
-article img.framed {
+article figure img {
+  max-width: 100%;
+}
+
+article figure img.half {
+  width: 50%;
+}
+
+article figure.framed img {
   border: 1px solid black;
 }
 
@@ -62,7 +73,7 @@ article > h1 {
 article > p {
   margin: 20px 0;
 }
-article > p > a {
+article a {
   color: #3691d7;
 }
 
